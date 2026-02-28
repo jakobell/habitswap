@@ -1,14 +1,16 @@
 import { StatusBar } from "expo-status-bar";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  SafeAreaView,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { useColorScheme } from "@/hooks/use-color-scheme";
 
 type HabitKind = "bad" | "good";
 
@@ -35,6 +37,29 @@ type HabitForm = {
   opportunity: string;
 };
 
+type TutorialStep = {
+  title: string;
+  text: string;
+};
+
+const STORAGE_KEY = "habitswap:data:v1";
+const ONBOARDING_KEY = "habitswap:onboarding:v1";
+
+const tutorial: TutorialStep[] = [
+  {
+    title: "Willkommen bei HabitSwap",
+    text: "Du ersetzt ein störendes Habit durch eine bessere Alternative mit ähnlichem Trigger und Reward.",
+  },
+  {
+    title: "Wie das Scoring funktioniert",
+    text: "Impact, Zeit, Schwierigkeit, Motivation und Opportunity werden gewichtet. Dadurch siehst du schnell, welche Änderung den größten Hebel hat.",
+  },
+  {
+    title: "Von Liste zu visuellem Grid",
+    text: "Die wichtigsten Swaps und Habits siehst du als Karten-Grid. So erkennst du Muster schneller als in einer langen Liste.",
+  },
+];
+
 const emptyForm: HabitForm = {
   name: "",
   cue: "",
@@ -58,17 +83,6 @@ const initialBad: Habit[] = [
     motivation: 7,
     opportunity: 9,
   },
-  {
-    id: "bad-2",
-    name: "Stress-Snacking",
-    cue: "Arbeitsstress am Nachmittag",
-    reward: "Sofortige Entspannung",
-    impact: 6,
-    timeMinutes: 25,
-    difficulty: 7,
-    motivation: 6,
-    opportunity: 8,
-  },
 ];
 
 const initialGood: Habit[] = [
@@ -83,18 +97,15 @@ const initialGood: Habit[] = [
     motivation: 6,
     opportunity: 7,
   },
-  {
-    id: "good-2",
-    name: "5 Minuten Atemübung",
-    cue: "Direkt vor Snack-Impuls",
-    reward: "Beruhigung",
-    impact: 7,
-    timeMinutes: 5,
-    difficulty: 2,
-    motivation: 7,
-    opportunity: 9,
-  },
 ];
+
+const font = { regular: "Inter", bold: "Inter-Bold" };
+
+const clampNumber = (value: string, min = 0, max = 10) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return min;
+  return Math.min(max, Math.max(min, Math.round(parsed)));
+};
 
 const toScore = (habit: Habit, kind: HabitKind) => {
   const impactWeight = 3;
@@ -123,9 +134,7 @@ const toScore = (habit: Habit, kind: HabitKind) => {
 };
 
 const parseHabit = (form: HabitForm): Habit | null => {
-  if (!form.name.trim()) {
-    return null;
-  }
+  if (!form.name.trim()) return null;
 
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -140,283 +149,6 @@ const parseHabit = (form: HabitForm): Habit | null => {
   };
 };
 
-const clampNumber = (value: string, min = 0, max = 10) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return min;
-  }
-  return Math.min(max, Math.max(min, Math.round(parsed)));
-};
-
-const HabitCard = ({
-  habit,
-  kind,
-  onDelete,
-}: {
-  habit: Habit;
-  kind: HabitKind;
-  onDelete: (id: string) => void;
-}) => {
-  const score = toScore(habit, kind);
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{habit.name}</Text>
-        <TouchableOpacity onPress={() => onDelete(habit.id)}>
-          <Text style={styles.delete}>Löschen</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.metric}>Cue: {habit.cue || "—"}</Text>
-      <Text style={styles.metric}>Reward: {habit.reward || "—"}</Text>
-      <Text style={styles.metric}>Impact/Nutzen: {habit.impact}/10</Text>
-      <Text style={styles.metric}>Zeit: {habit.timeMinutes} Min/Tag</Text>
-      <Text style={styles.metric}>Schwierigkeit: {habit.difficulty}/10</Text>
-      <Text style={styles.metric}>Motivation: {habit.motivation}/10</Text>
-      <Text style={styles.metric}>Opportunity: {habit.opportunity}/10</Text>
-      <Text style={styles.score}>Prioritäts-Score: {score.toFixed(1)}</Text>
-    </View>
-  );
-};
-
-const FormField = ({
-  label,
-  value,
-  onChangeText,
-  keyboardType = "default",
-}: {
-  label: string;
-  value: string;
-  onChangeText: (value: string) => void;
-  keyboardType?: "default" | "numeric";
-}) => (
-  <View style={styles.formField}>
-    <Text style={styles.label}>{label}</Text>
-    <TextInput
-      value={value}
-      onChangeText={onChangeText}
-      style={styles.input}
-      keyboardType={keyboardType}
-      placeholder={label}
-      placeholderTextColor="#64748b"
-    />
-  </View>
-);
-
-export default function Index() {
-  const [badHabits, setBadHabits] = useState<Habit[]>(initialBad);
-  const [goodHabits, setGoodHabits] = useState<Habit[]>(initialGood);
-  const [badForm, setBadForm] = useState<HabitForm>(emptyForm);
-  const [goodForm, setGoodForm] = useState<HabitForm>(emptyForm);
-
-  const rankedBad = useMemo(
-    () => [...badHabits].sort((a, b) => toScore(b, "bad") - toScore(a, "bad")),
-    [badHabits],
-  );
-
-  const rankedGood = useMemo(
-    () =>
-      [...goodHabits].sort((a, b) => toScore(b, "good") - toScore(a, "good")),
-    [goodHabits],
-  );
-
-  const swapSuggestions = useMemo(() => {
-    return rankedBad.slice(0, 3).map((badHabit) => {
-      const match = rankedGood
-        .map((goodHabit) => {
-          const rewardMatch = includesWord(goodHabit.reward, badHabit.reward)
-            ? 2
-            : 0;
-          const cueMatch = includesWord(goodHabit.cue, badHabit.cue) ? 1 : 0;
-          const timePenalty =
-            Math.abs(goodHabit.timeMinutes - badHabit.timeMinutes) / 20;
-          const compatibility =
-            toScore(goodHabit, "good") + rewardMatch + cueMatch - timePenalty;
-          return { goodHabit, compatibility };
-        })
-        .sort((a, b) => b.compatibility - a.compatibility)[0];
-
-      return { badHabit, replacement: match?.goodHabit };
-    });
-  }, [rankedBad, rankedGood]);
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>HabitSwap</Text>
-        <Text style={styles.subtitle}>
-          Ersetze schlechte Gewohnheiten systematisch über Cue, Reward, Impact,
-          Zeit, Motivation, Fähigkeit und Opportunity.
-        </Text>
-
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Top Habit-Swaps</Text>
-          {swapSuggestions.map(({ badHabit, replacement }) => (
-            <View key={badHabit.id} style={styles.swapItem}>
-              <Text style={styles.swapHeadline}>❌ {badHabit.name}</Text>
-              <Text style={styles.swapArrow}>
-                ↳ ✅ {replacement?.name || "Noch kein Match vorhanden"}
-              </Text>
-              <Text style={styles.swapMeta}>Cue: {badHabit.cue || "—"}</Text>
-              <Text style={styles.swapMeta}>
-                Reward: {badHabit.reward || "—"}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Schlechte Habit hinzufügen</Text>
-          <FormField
-            label="Name"
-            value={badForm.name}
-            onChangeText={(value) =>
-              setBadForm((old) => ({ ...old, name: value }))
-            }
-          />
-          <FormField
-            label="Cue / Trigger"
-            value={badForm.cue}
-            onChangeText={(value) =>
-              setBadForm((old) => ({ ...old, cue: value }))
-            }
-          />
-          <FormField
-            label="Reward"
-            value={badForm.reward}
-            onChangeText={(value) =>
-              setBadForm((old) => ({ ...old, reward: value }))
-            }
-          />
-          <NumberFields form={badForm} setForm={setBadForm} />
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => {
-              const parsed = parseHabit(badForm);
-              if (!parsed) return;
-              setBadHabits((old) => [parsed, ...old]);
-              setBadForm(emptyForm);
-            }}
-          >
-            <Text style={styles.buttonText}>Schlechte Habit speichern</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Gute Habit hinzufügen</Text>
-          <FormField
-            label="Name"
-            value={goodForm.name}
-            onChangeText={(value) =>
-              setGoodForm((old) => ({ ...old, name: value }))
-            }
-          />
-          <FormField
-            label="Cue / Trigger"
-            value={goodForm.cue}
-            onChangeText={(value) =>
-              setGoodForm((old) => ({ ...old, cue: value }))
-            }
-          />
-          <FormField
-            label="Reward"
-            value={goodForm.reward}
-            onChangeText={(value) =>
-              setGoodForm((old) => ({ ...old, reward: value }))
-            }
-          />
-          <NumberFields form={goodForm} setForm={setGoodForm} />
-          <TouchableOpacity
-            style={[styles.button, styles.goodButton]}
-            onPress={() => {
-              const parsed = parseHabit(goodForm);
-              if (!parsed) return;
-              setGoodHabits((old) => [parsed, ...old]);
-              setGoodForm(emptyForm);
-            }}
-          >
-            <Text style={styles.buttonText}>Gute Habit speichern</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.sectionTitle}>Schlechte Habits (priorisiert)</Text>
-        {rankedBad.map((habit) => (
-          <HabitCard
-            key={habit.id}
-            habit={habit}
-            kind="bad"
-            onDelete={(id) =>
-              setBadHabits((old) => old.filter((item) => item.id !== id))
-            }
-          />
-        ))}
-
-        <Text style={styles.sectionTitle}>Gute Habits (priorisiert)</Text>
-        {rankedGood.map((habit) => (
-          <HabitCard
-            key={habit.id}
-            habit={habit}
-            kind="good"
-            onDelete={(id) =>
-              setGoodHabits((old) => old.filter((item) => item.id !== id))
-            }
-          />
-        ))}
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-const NumberFields = ({
-  form,
-  setForm,
-}: {
-  form: HabitForm;
-  setForm: React.Dispatch<React.SetStateAction<HabitForm>>;
-}) => (
-  <>
-    <FormField
-      label="Impact/Nutzen (0-10)"
-      value={form.impact}
-      keyboardType="numeric"
-      onChangeText={(value) => setForm((old) => ({ ...old, impact: value }))}
-    />
-    <FormField
-      label="Zeit (Min/Tag)"
-      value={form.timeMinutes}
-      keyboardType="numeric"
-      onChangeText={(value) =>
-        setForm((old) => ({ ...old, timeMinutes: value }))
-      }
-    />
-    <FormField
-      label="Schwierigkeit (0-10)"
-      value={form.difficulty}
-      keyboardType="numeric"
-      onChangeText={(value) =>
-        setForm((old) => ({ ...old, difficulty: value }))
-      }
-    />
-    <FormField
-      label="Motivation (0-10)"
-      value={form.motivation}
-      keyboardType="numeric"
-      onChangeText={(value) =>
-        setForm((old) => ({ ...old, motivation: value }))
-      }
-    />
-    <FormField
-      label="Opportunity (0-10)"
-      value={form.opportunity}
-      keyboardType="numeric"
-      onChangeText={(value) =>
-        setForm((old) => ({ ...old, opportunity: value }))
-      }
-    />
-  </>
-);
-
 const includesWord = (left: string, right: string) => {
   const l = left.toLowerCase();
   return right
@@ -425,127 +157,318 @@ const includesWord = (left: string, right: string) => {
     .some((part) => part.length > 3 && l.includes(part));
 };
 
+const readStorage = (key: string) => {
+  if (typeof localStorage === "undefined") return null;
+  return localStorage.getItem(key);
+};
+
+const writeStorage = (key: string, value: string) => {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(key, value);
+};
+
+export default function Index() {
+  const scheme = useColorScheme() ?? "light";
+  const c = scheme === "dark" ? dark : light;
+  const insets = useSafeAreaInsets();
+
+  const [badHabits, setBadHabits] = useState<Habit[]>(initialBad);
+  const [goodHabits, setGoodHabits] = useState<Habit[]>(initialGood);
+  const [badForm, setBadForm] = useState<HabitForm>(emptyForm);
+  const [goodForm, setGoodForm] = useState<HabitForm>(emptyForm);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+
+  useEffect(() => {
+    const saved = readStorage(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved) as { badHabits: Habit[]; goodHabits: Habit[] };
+      if (parsed?.badHabits?.length) setBadHabits(parsed.badHabits);
+      if (parsed?.goodHabits?.length) setGoodHabits(parsed.goodHabits);
+    }
+    const onboardingDone = readStorage(ONBOARDING_KEY) === "done";
+    setTutorialOpen(!onboardingDone);
+  }, []);
+
+  useEffect(() => {
+    writeStorage(STORAGE_KEY, JSON.stringify({ badHabits, goodHabits }));
+  }, [badHabits, goodHabits]);
+
+  const rankedBad = useMemo(
+    () => [...badHabits].sort((a, b) => toScore(b, "bad") - toScore(a, "bad")),
+    [badHabits],
+  );
+  const rankedGood = useMemo(
+    () => [...goodHabits].sort((a, b) => toScore(b, "good") - toScore(a, "good")),
+    [goodHabits],
+  );
+
+  const swapSuggestions = useMemo(() => {
+    return rankedBad.slice(0, 4).map((badHabit) => {
+      const replacement = rankedGood
+        .map((goodHabit) => {
+          const rewardMatch = includesWord(goodHabit.reward, badHabit.reward) ? 2 : 0;
+          const cueMatch = includesWord(goodHabit.cue, badHabit.cue) ? 1 : 0;
+          const timePenalty = Math.abs(goodHabit.timeMinutes - badHabit.timeMinutes) / 20;
+          const compatibility = toScore(goodHabit, "good") + rewardMatch + cueMatch - timePenalty;
+          return { goodHabit, compatibility };
+        })
+        .sort((a, b) => b.compatibility - a.compatibility)[0]?.goodHabit;
+
+      return { badHabit, replacement };
+    });
+  }, [rankedBad, rankedGood]);
+
+  const tutorialCard = tutorial[tutorialStep];
+
+  return (
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: c.bg }]} edges={["top", "left", "right"]}>
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { paddingBottom: Math.max(70, insets.bottom + 28), backgroundColor: c.bg },
+        ]}>
+        <View style={[styles.hero, { backgroundColor: c.glass, borderColor: c.border }]}> 
+          <Text style={[styles.title, { color: c.text }]}>HabitSwap</Text>
+          <Text style={[styles.subtitle, { color: c.subtle }]}>Modernes Habit-Design mit Grid, Smart-Scoring und Habit-Ersatz statt reiner Disziplin.</Text>
+        </View>
+
+        <View style={[styles.panel, { backgroundColor: c.glass, borderColor: c.border }]}> 
+          <Text style={[styles.panelTitle, { color: c.text }]}>Konzept: Warum HabitSwap funktioniert</Text>
+          <Text style={[styles.body, { color: c.subtle }]}>Die App optimiert nicht nur Ziele, sondern die Struktur hinter Gewohnheiten: Trigger (Cue), Belohnung (Reward) und Aufwand. Schlechte Routinen werden nicht "gelöscht", sondern durch kompatible bessere Alternativen ersetzt.</Text>
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: c.text }]}>Top Habit-Swaps</Text>
+        <View style={styles.grid}>
+          {swapSuggestions.map(({ badHabit, replacement }) => (
+            <View key={badHabit.id} style={[styles.gridCard, { backgroundColor: c.glassStrong, borderColor: c.border }]}> 
+              <Text style={[styles.swapHeadline, { color: c.bad }]}>❌ {badHabit.name}</Text>
+              <Text style={[styles.swapArrow, { color: c.good }]}>↳ ✅ {replacement?.name || "Noch kein Match"}</Text>
+              <Text style={[styles.metric, { color: c.subtle }]}>Cue: {badHabit.cue || "—"}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={[styles.panel, { backgroundColor: c.glass, borderColor: c.border }]}> 
+          <Text style={[styles.panelTitle, { color: c.text }]}>Schlechte Habit hinzufügen</Text>
+          <Form form={badForm} setForm={setBadForm} colors={c} />
+          <ActionButton
+            label="Schlechte Habit speichern"
+            color={c.badButton}
+            onPress={() => {
+              const parsed = parseHabit(badForm);
+              if (!parsed) return;
+              setBadHabits((old) => [parsed, ...old]);
+              setBadForm(emptyForm);
+            }}
+          />
+        </View>
+
+        <View style={[styles.panel, { backgroundColor: c.glass, borderColor: c.border }]}> 
+          <Text style={[styles.panelTitle, { color: c.text }]}>Gute Habit hinzufügen</Text>
+          <Form form={goodForm} setForm={setGoodForm} colors={c} />
+          <ActionButton
+            label="Gute Habit speichern"
+            color={c.goodButton}
+            onPress={() => {
+              const parsed = parseHabit(goodForm);
+              if (!parsed) return;
+              setGoodHabits((old) => [parsed, ...old]);
+              setGoodForm(emptyForm);
+            }}
+          />
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: c.text }]}>Schlechte Habits (Grid)</Text>
+        <HabitGrid habits={rankedBad} kind="bad" colors={c} onDelete={(id) => setBadHabits((old) => old.filter((h) => h.id !== id))} />
+
+        <Text style={[styles.sectionTitle, { color: c.text }]}>Gute Habits (Grid)</Text>
+        <HabitGrid habits={rankedGood} kind="good" colors={c} onDelete={(id) => setGoodHabits((old) => old.filter((h) => h.id !== id))} />
+      </ScrollView>
+
+      {tutorialOpen ? (
+        <View style={styles.overlay}>
+          <View style={[styles.tutorialCard, { backgroundColor: c.glassStrong, borderColor: c.border }]}> 
+            <Text style={[styles.panelTitle, { color: c.text }]}>{tutorialCard.title}</Text>
+            <Text style={[styles.body, { color: c.subtle }]}>{tutorialCard.text}</Text>
+            <View style={styles.row}>
+              <ActionButton
+                label="Überspringen"
+                color={c.mutedButton}
+                onPress={() => {
+                  writeStorage(ONBOARDING_KEY, "done");
+                  setTutorialOpen(false);
+                }}
+              />
+              <ActionButton
+                label={tutorialStep === tutorial.length - 1 ? "Los geht's" : "Weiter"}
+                color={c.goodButton}
+                onPress={() => {
+                  if (tutorialStep === tutorial.length - 1) {
+                    writeStorage(ONBOARDING_KEY, "done");
+                    setTutorialOpen(false);
+                    return;
+                  }
+                  setTutorialStep((step) => step + 1);
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      ) : null}
+    </SafeAreaView>
+  );
+}
+
+function HabitGrid({
+  habits,
+  kind,
+  colors,
+  onDelete,
+}: {
+  habits: Habit[];
+  kind: HabitKind;
+  colors: ReturnType<typeof buildColors>;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <View style={styles.grid}>
+      {habits.map((habit) => (
+        <View key={habit.id} style={[styles.gridCard, { backgroundColor: colors.glassStrong, borderColor: colors.border }]}> 
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>{habit.name}</Text>
+            <Pressable onPress={() => onDelete(habit.id)}>
+              <Text style={[styles.delete, { color: colors.bad }]}>Löschen</Text>
+            </Pressable>
+          </View>
+          <Text style={[styles.metric, { color: colors.subtle }]}>Cue: {habit.cue || "—"}</Text>
+          <Text style={[styles.metric, { color: colors.subtle }]}>Reward: {habit.reward || "—"}</Text>
+          <Text style={[styles.metric, { color: colors.subtle }]}>Zeit: {habit.timeMinutes} Min</Text>
+          <Text style={[styles.score, { color: kind === "bad" ? colors.bad : colors.good }]}>Score: {toScore(habit, kind).toFixed(1)}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function Form({
+  form,
+  setForm,
+  colors,
+}: {
+  form: HabitForm;
+  setForm: React.Dispatch<React.SetStateAction<HabitForm>>;
+  colors: ReturnType<typeof buildColors>;
+}) {
+  return (
+    <>
+      <FormField label="Name" value={form.name} colors={colors} onChangeText={(value) => setForm((old) => ({ ...old, name: value }))} />
+      <FormField label="Cue / Trigger" value={form.cue} colors={colors} onChangeText={(value) => setForm((old) => ({ ...old, cue: value }))} />
+      <FormField label="Reward" value={form.reward} colors={colors} onChangeText={(value) => setForm((old) => ({ ...old, reward: value }))} />
+      <FormField label="Impact/Nutzen (0-10)" value={form.impact} keyboardType="numeric" colors={colors} onChangeText={(value) => setForm((old) => ({ ...old, impact: value }))} />
+      <FormField label="Zeit (Min/Tag)" value={form.timeMinutes} keyboardType="numeric" colors={colors} onChangeText={(value) => setForm((old) => ({ ...old, timeMinutes: value }))} />
+      <FormField label="Schwierigkeit (0-10)" value={form.difficulty} keyboardType="numeric" colors={colors} onChangeText={(value) => setForm((old) => ({ ...old, difficulty: value }))} />
+      <FormField label="Motivation (0-10)" value={form.motivation} keyboardType="numeric" colors={colors} onChangeText={(value) => setForm((old) => ({ ...old, motivation: value }))} />
+      <FormField label="Opportunity (0-10)" value={form.opportunity} keyboardType="numeric" colors={colors} onChangeText={(value) => setForm((old) => ({ ...old, opportunity: value }))} />
+    </>
+  );
+}
+
+function FormField({
+  label,
+  value,
+  onChangeText,
+  colors,
+  keyboardType = "default",
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  colors: ReturnType<typeof buildColors>;
+  keyboardType?: "default" | "numeric";
+}) {
+  return (
+    <View style={styles.formField}>
+      <Text style={[styles.label, { color: colors.subtle }]}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType={keyboardType}
+        style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.input }]}
+        placeholder={label}
+        placeholderTextColor={colors.placeholder}
+      />
+    </View>
+  );
+}
+
+function ActionButton({ label, onPress, color }: { label: string; onPress: () => void; color: string }) {
+  return (
+    <Pressable style={[styles.button, { backgroundColor: color }]} onPress={onPress}>
+      <Text style={styles.buttonText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const buildColors = (darkMode: boolean) => ({
+  bg: darkMode ? "#040712" : "#eef2ff",
+  text: darkMode ? "#f8fafc" : "#0f172a",
+  subtle: darkMode ? "#cbd5e1" : "#334155",
+  border: darkMode ? "rgba(148,163,184,0.25)" : "rgba(71,85,105,0.2)",
+  glass: darkMode ? "rgba(15,23,42,0.6)" : "rgba(255,255,255,0.72)",
+  glassStrong: darkMode ? "rgba(15,23,42,0.78)" : "rgba(255,255,255,0.86)",
+  input: darkMode ? "rgba(30,41,59,0.65)" : "rgba(255,255,255,0.92)",
+  placeholder: darkMode ? "#94a3b8" : "#64748b",
+  good: "#22c55e",
+  bad: "#fb7185",
+  goodButton: "#16a34a",
+  badButton: "#dc2626",
+  mutedButton: "#64748b",
+});
+
+const dark = buildColors(true);
+const light = buildColors(false);
+
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#020617",
-  },
-  container: {
-    padding: 16,
-    paddingBottom: 80,
-    backgroundColor: "#020617",
-  },
-  title: {
-    color: "#f8fafc",
-    fontSize: 32,
-    fontWeight: "800",
-  },
-  subtitle: {
-    color: "#cbd5e1",
-    marginTop: 8,
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  panel: {
-    backgroundColor: "#0f172a",
-    borderColor: "#334155",
+  safeArea: { flex: 1 },
+  container: { paddingHorizontal: 16, paddingTop: 12, gap: 12 },
+  hero: {
+    borderRadius: 22,
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 14,
+    padding: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 20,
+    elevation: 8,
   },
-  panelTitle: {
-    color: "#e2e8f0",
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 10,
+  title: { fontSize: 33, fontFamily: font.bold, fontWeight: "800" },
+  subtitle: { marginTop: 8, lineHeight: 21, fontFamily: font.regular },
+  panel: { borderRadius: 20, borderWidth: 1, padding: 14 },
+  panelTitle: { fontSize: 18, fontFamily: font.bold, fontWeight: "700", marginBottom: 8 },
+  sectionTitle: { fontSize: 20, fontWeight: "800", fontFamily: font.bold, marginTop: 4 },
+  body: { lineHeight: 21, fontFamily: font.regular },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  gridCard: { width: "48%", borderWidth: 1, borderRadius: 16, padding: 11 },
+  swapHeadline: { fontFamily: font.bold, fontWeight: "700" },
+  swapArrow: { marginTop: 4, fontFamily: font.bold, fontWeight: "700" },
+  metric: { marginTop: 4, fontFamily: font.regular, fontSize: 13 },
+  score: { marginTop: 8, fontFamily: font.bold, fontWeight: "700" },
+  cardHeader: { flexDirection: "row", gap: 6, justifyContent: "space-between", alignItems: "flex-start" },
+  cardTitle: { flex: 1, fontFamily: font.bold, fontWeight: "700" },
+  delete: { fontFamily: font.bold, fontWeight: "700", fontSize: 12 },
+  formField: { marginBottom: 8 },
+  label: { marginBottom: 4, fontSize: 12, fontFamily: font.regular },
+  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 9, fontFamily: font.regular },
+  button: { borderRadius: 12, marginTop: 8, paddingVertical: 12, alignItems: "center", minWidth: 120 },
+  buttonText: { color: "white", fontFamily: font.bold, fontWeight: "700" },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(2,6,23,0.5)",
+    justifyContent: "center",
+    padding: 18,
   },
-  sectionTitle: {
-    color: "#f8fafc",
-    fontSize: 19,
-    fontWeight: "700",
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  card: {
-    backgroundColor: "#1e293b",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
-    marginBottom: 8,
-  },
-  cardTitle: {
-    color: "#f1f5f9",
-    fontWeight: "700",
-    flex: 1,
-  },
-  delete: {
-    color: "#f87171",
-    fontWeight: "600",
-  },
-  metric: {
-    color: "#cbd5e1",
-    marginBottom: 2,
-  },
-  score: {
-    color: "#22d3ee",
-    marginTop: 6,
-    fontWeight: "700",
-  },
-  formField: {
-    marginBottom: 8,
-  },
-  label: {
-    color: "#cbd5e1",
-    marginBottom: 4,
-    fontSize: 12,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#475569",
-    borderRadius: 8,
-    color: "#f8fafc",
-    backgroundColor: "#1e293b",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  button: {
-    backgroundColor: "#dc2626",
-    borderRadius: 8,
-    marginTop: 8,
-    padding: 12,
-    alignItems: "center",
-  },
-  goodButton: {
-    backgroundColor: "#16a34a",
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-  swapItem: {
-    backgroundColor: "#1e293b",
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 8,
-  },
-  swapHeadline: {
-    color: "#fda4af",
-    fontWeight: "700",
-  },
-  swapArrow: {
-    color: "#86efac",
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  swapMeta: {
-    color: "#cbd5e1",
-    marginTop: 2,
-    fontSize: 12,
-  },
+  tutorialCard: { borderRadius: 18, borderWidth: 1, padding: 16, gap: 10 },
+  row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
 });
