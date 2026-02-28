@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHabitStore } from '@/context/habit-context';
 import { Habit, HabitKind, motivationTypeLabel, toScore } from '@/lib/habits';
 import { useAppTheme } from '@/hooks/use-app-theme';
+import { Icon3D } from '@/components/ui/icon-3d';
 
 type Section = { title: string; habits: Habit[]; kind: HabitKind };
 
@@ -22,7 +23,10 @@ export default function ExploreScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         {sections.map((section) => (
           <View key={section.title} style={[styles.panel, { backgroundColor: c.card, borderColor: c.border }]}>
-            <Text style={[styles.title, { color: c.text }]}>🗂️ {section.title}</Text>
+            <View style={styles.titleRow}>
+              <Icon3D name={section.kind === 'bad' ? 'emoticon-confused' : 'check-decagram'} color="#fff" plate={section.kind === 'bad' ? c.danger : c.success} shadow={section.kind === 'bad' ? '#9f3347' : '#248f5e'} />
+              <Text style={[styles.title, { color: c.text }]}>{section.title}</Text>
+            </View>
             {section.habits.map((habit) => (
               <View key={habit.id} style={[styles.row, { borderColor: c.border }]}>
                 <Text style={[styles.name, { color: c.text }]}>{habit.name}</Text>
@@ -41,6 +45,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: { padding: 16, gap: 12, paddingBottom: 120 },
   panel: { borderWidth: 1, borderRadius: 20, padding: 12, gap: 8 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   title: { fontSize: 18, fontWeight: '800' },
   row: { borderWidth: 1, borderRadius: 12, padding: 10, gap: 3 },
   name: { fontWeight: '700' },
