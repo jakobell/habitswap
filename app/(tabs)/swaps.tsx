@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHabitStore } from '@/context/habit-context';
 import { buildSwapSuggestions, emptyForm, HabitForm, motivationTypeLabel, parseHabit } from '@/lib/habits';
 import { useAppTheme } from '@/hooks/use-app-theme';
+import { Icon3D } from '@/components/ui/icon-3d';
 
 export default function SwapsScreen() {
   const c = useAppTheme();
@@ -17,7 +18,7 @@ export default function SwapsScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: c.background }]}> 
       <ScrollView contentContainerStyle={styles.container}>
-        <Panel title="🧠 Top Habit-Swaps" c={c}>
+        <Panel title="Top Habit-Swaps" icon="head-sync" iconColor="#fff" iconPlate={c.accent} iconShadow={c.accentSoft} c={c}>
           {suggestions.map(({ badHabit, replacement }) => (
             <View key={badHabit.id} style={[styles.swapCard, { borderColor: c.border, backgroundColor: c.cardSoft }]}> 
               <Text style={[styles.badText, { color: c.danger }]}>🚫 {badHabit.name}</Text>
@@ -28,7 +29,7 @@ export default function SwapsScreen() {
           ))}
         </Panel>
 
-        <Panel title="😵 Schlechte Habit hinzufügen" c={c}>
+        <Panel title="Schlechte Habit hinzufügen" icon="emoticon-sad-outline" iconColor="#fff" iconPlate={c.danger} iconShadow="#9f3347" c={c}>
           <HabitFormFields form={badForm} setForm={setBadForm} c={c} />
           <Action label="Schlechte Habit speichern" color={c.danger} onPress={() => {
             const parsed = parseHabit(badForm);
@@ -38,7 +39,7 @@ export default function SwapsScreen() {
           }} />
         </Panel>
 
-        <Panel title="🌱 Gute Habit hinzufügen" c={c}>
+        <Panel title="Gute Habit hinzufügen" icon="sprout" iconColor="#fff" iconPlate={c.success} iconShadow="#248f5e" c={c}>
           <HabitFormFields form={goodForm} setForm={setGoodForm} c={c} />
           <Action label="Gute Habit speichern" color={c.success} onPress={() => {
             const parsed = parseHabit(goodForm);
@@ -48,7 +49,7 @@ export default function SwapsScreen() {
           }} />
         </Panel>
 
-        <Panel title="🧩 Habits verwalten" c={c}>
+        <Panel title="Habits verwalten" icon="puzzle" iconColor="#fff" iconPlate={c.accent} iconShadow={c.accentSoft} c={c}>
           {badHabits.map((habit) => (
             <HabitRow key={habit.id} name={habit.name} detail={`bad • ${motivationTypeLabel[habit.motivationType]}`} onDelete={() => deleteHabit('bad', habit.id)} c={c} />
           ))}
@@ -61,8 +62,16 @@ export default function SwapsScreen() {
   );
 }
 
-function Panel({ title, c, children }: { title: string; c: any; children: React.ReactNode }) {
-  return <View style={[styles.panel, { backgroundColor: c.card, borderColor: c.border }]}><Text style={[styles.title, { color: c.text }]}>{title}</Text>{children}</View>;
+function Panel({ title, c, children, icon, iconColor, iconPlate, iconShadow }: { title: string; c: any; children: React.ReactNode; icon: React.ComponentProps<typeof Icon3D>['name']; iconColor: string; iconPlate: string; iconShadow: string }) {
+  return (
+    <View style={[styles.panel, { backgroundColor: c.card, borderColor: c.border }]}>
+      <View style={styles.panelTitleRow}>
+        <Icon3D name={icon} color={iconColor} plate={iconPlate} shadow={iconShadow} />
+        <Text style={[styles.title, { color: c.text }]}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
 }
 
 function HabitFormFields({ form, setForm, c }: { form: HabitForm; setForm: React.Dispatch<React.SetStateAction<HabitForm>>; c: any }) {
@@ -118,6 +127,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: { padding: 16, gap: 12, paddingBottom: 120 },
   panel: { borderWidth: 1, borderRadius: 20, padding: 14, gap: 10 },
+  panelTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   title: { fontSize: 16, fontWeight: '800' },
   swapCard: { borderWidth: 1, borderRadius: 16, padding: 12, marginBottom: 8 },
   badText: { fontWeight: '700' },
