@@ -21,10 +21,10 @@ export default function SwapsScreen() {
         <Panel title="Top Habit-Swaps" icon="head-sync" iconColor="#fff" iconPlate={c.accent} iconShadow={c.accentSoft} c={c}>
           {suggestions.map(({ badHabit, replacement }) => (
             <View key={badHabit.id} style={[styles.swapCard, { borderColor: c.border, backgroundColor: c.cardSoft }]}> 
-              <Text style={[styles.badText, { color: c.danger }]}>🚫 {badHabit.name}</Text>
-              <Text style={[styles.goodText, { color: c.success }]}>✨ {replacement?.name || 'Noch kein Match'}</Text>
-              <Text style={[styles.meta, { color: c.mutedText }]}>🎯 Cue: {badHabit.cue || '—'}</Text>
-              <Text style={[styles.meta, { color: c.mutedText }]}>🏆 Reward: {badHabit.reward || '—'}</Text>
+              <Text style={[styles.badText, { color: c.danger }]}>Alt: {badHabit.name}</Text>
+              <Text style={[styles.goodText, { color: c.success }]}>Neu: {replacement?.name || 'Noch kein Match'}</Text>
+              <Text style={[styles.meta, { color: c.mutedText }]}>Cue: {badHabit.cue || '—'}</Text>
+              <Text style={[styles.meta, { color: c.mutedText }]}>Reward: {badHabit.reward || '—'}</Text>
             </View>
           ))}
         </Panel>
@@ -77,16 +77,16 @@ function Panel({ title, c, children, icon, iconColor, iconPlate, iconShadow }: {
 function HabitFormFields({ form, setForm, c }: { form: HabitForm; setForm: React.Dispatch<React.SetStateAction<HabitForm>>; c: any }) {
   return (
     <>
-      <Field label="📝 Name" value={form.name} onChangeText={(v) => setForm((o) => ({ ...o, name: v }))} c={c} />
-      <Field label="🎯 Cue/Trigger" value={form.cue} onChangeText={(v) => setForm((o) => ({ ...o, cue: v }))} c={c} />
-      <Field label="🏆 Reward" value={form.reward} onChangeText={(v) => setForm((o) => ({ ...o, reward: v }))} c={c} />
-      <Field label="💬 Prompt" value={form.prompt} onChangeText={(v) => setForm((o) => ({ ...o, prompt: v }))} c={c} />
-      <Field label="📈 Impact (0-10)" value={form.impact} onChangeText={(v) => setForm((o) => ({ ...o, impact: v }))} numeric c={c} />
-      <Field label="⏱️ Zeit Min/Tag" value={form.timeMinutes} onChangeText={(v) => setForm((o) => ({ ...o, timeMinutes: v }))} numeric c={c} />
-      <Field label="🧱 Difficulty (0-10)" value={form.difficulty} onChangeText={(v) => setForm((o) => ({ ...o, difficulty: v }))} numeric c={c} />
-      <Field label="🔥 Motivation (0-10)" value={form.motivation} onChangeText={(v) => setForm((o) => ({ ...o, motivation: v }))} numeric c={c} />
-      <Field label="💪 Capability (0-10)" value={form.capability} onChangeText={(v) => setForm((o) => ({ ...o, capability: v }))} numeric c={c} />
-      <Field label="🌍 Opportunity (0-10)" value={form.opportunity} onChangeText={(v) => setForm((o) => ({ ...o, opportunity: v }))} numeric c={c} />
+      <Field label="Name" value={form.name} onChangeText={(v) => setForm((o) => ({ ...o, name: v }))} c={c} />
+      <Field label="Cue/Trigger" value={form.cue} onChangeText={(v) => setForm((o) => ({ ...o, cue: v }))} c={c} />
+      <Field label="Reward" value={form.reward} onChangeText={(v) => setForm((o) => ({ ...o, reward: v }))} c={c} />
+      <Field label="Prompt" value={form.prompt} onChangeText={(v) => setForm((o) => ({ ...o, prompt: v }))} c={c} />
+      <Field label="Impact (0-10)" value={form.impact} onChangeText={(v) => setForm((o) => ({ ...o, impact: v }))} numeric c={c} />
+      <Field label="Zeit Min/Tag" value={form.timeMinutes} onChangeText={(v) => setForm((o) => ({ ...o, timeMinutes: v }))} numeric c={c} />
+      <Field label="Difficulty (0-10)" value={form.difficulty} onChangeText={(v) => setForm((o) => ({ ...o, difficulty: v }))} numeric c={c} />
+      <Field label="Motivation (0-10)" value={form.motivation} onChangeText={(v) => setForm((o) => ({ ...o, motivation: v }))} numeric c={c} />
+      <Field label="Capability (0-10)" value={form.capability} onChangeText={(v) => setForm((o) => ({ ...o, capability: v }))} numeric c={c} />
+      <Field label="Opportunity (0-10)" value={form.opportunity} onChangeText={(v) => setForm((o) => ({ ...o, opportunity: v }))} numeric c={c} />
       <View style={styles.typeRow}>
         {(['intrinsic', 'extrinsic', 'mixed'] as const).map((type) => (
           <Pressable key={type} style={[styles.typePill, { borderColor: c.border, backgroundColor: form.motivationType === type ? c.accent : c.cardSoft }]} onPress={() => setForm((o) => ({ ...o, motivationType: type }))}>
