@@ -3,6 +3,7 @@ import React from 'react';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { HapticTab } from '@/components/haptic-tab';
+import { HabitProvider } from '@/context/habit-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const palette = {
@@ -27,7 +28,8 @@ export default function TabLayout() {
   const c = palette[colorScheme];
 
   return (
-    <Tabs
+    <HabitProvider>
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
@@ -96,6 +98,7 @@ export default function TabLayout() {
           ),
         }}
       />
-    </Tabs>
+      </Tabs>
+    </HabitProvider>
   );
 }
