@@ -38,8 +38,8 @@ export default function DashboardScreen() {
             <Icon3D name="swap-horizontal-bold" color="#fff" plate={c.accent} shadow={c.accentSoft} />
             <Text style={[styles.cardTitle, { color: c.text }]}>Top Swap</Text>
           </View>
-          <Text style={[styles.body, { color: c.mutedText }]}>❌ {topSwap?.badHabit.name || '—'}</Text>
-          <Text style={[styles.body, { color: c.text }]}>✅ {topSwap?.replacement?.name || 'Noch kein Match'}</Text>
+          <Text style={[styles.body, { color: c.mutedText }]}>Bad: {topSwap?.badHabit.name || '—'}</Text>
+          <Text style={[styles.body, { color: c.text }]}>Neu: {topSwap?.replacement?.name || 'Noch kein Match'}</Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(300).springify()} style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}> 
